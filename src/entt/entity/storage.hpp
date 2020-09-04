@@ -158,10 +158,6 @@ class storage: public sparse_set<Entity> {
 public:
     /*! @brief Type of the objects associated with the entities. */
     using object_type = Type;
-    /*! @brief Underlying entity identifier. */
-    using entity_type = Entity;
-    /*! @brief Unsigned integer type. */
-    using size_type = std::size_t;
     /*! @brief Random access iterator type. */
     using iterator = storage_iterator<false>;
     /*! @brief Constant random access iterator type. */
