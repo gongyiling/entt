@@ -176,6 +176,8 @@ class sparse_set {
 public:
     /*! @brief Underlying entity identifier. */
     using entity_type = Entity;
+    /*! @brief Underlying version type. */
+    using version_type = typename traits_type::version_type;
     /*! @brief Unsigned integer type. */
     using size_type = std::size_t;
     /*! @brief Random access iterator type. */
@@ -388,6 +390,23 @@ public:
         ENTT_ASSERT(!contains(entt));
         assure(page(entt))[offset(entt)] = entity_type(static_cast<typename traits_type::entity_type>(packed.size()));
         packed.push_back(entt);
+    }
+
+    /**
+     * @brief Updates the version of an entity in a sparse set.
+     *
+     * @warning
+     * Attempting to update an entity that doesn't belong to the sparse set
+     * results in undefined behavior.<br/>
+     * An assertion will abort the execution at runtime in debug mode if the
+     * sparse set doesn't contain the given entity.
+     *
+     * @param entt A valid entity identifier.
+     * @param version Updated version to assign to the entity.
+     */
+    void emplace(const entity_type entt, const version_type version) {
+        ENTT_ASSERT(contains(entt));
+        packed[index(entt)] = entity_type{(to_integral(entt) & traits_type::entity_mask) | (typename traits_type::entity_type{version} << traits_type::entity_shift)};
     }
 
     /**

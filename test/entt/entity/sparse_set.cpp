@@ -5,6 +5,7 @@
 #include <functional>
 #include <type_traits>
 #include <gtest/gtest.h>
+#include <entt/entity/entity.hpp>
 #include <entt/entity/sparse_set.hpp>
 #include <entt/entity/fwd.hpp>
 
@@ -70,6 +71,22 @@ TEST(SparseSet, Functionalities) {
     ASSERT_EQ(other.begin(), other.end());
     ASSERT_FALSE(other.contains(entt::entity{0}));
     ASSERT_FALSE(other.contains(entt::entity{42}));
+}
+
+TEST(SparseSet, VersionUpdate) {
+    using traits_type = entt::entt_traits<entt::entity>;
+
+    entt::sparse_set<entt::entity> set;
+    const traits_type::version_type version{16u};
+    const entt::entity entity{0u};
+
+    set.emplace(entt::entity{0u});
+
+    ASSERT_EQ(*set.data(), entt::entity{0u});
+
+    set.emplace(entity, version);
+
+    ASSERT_EQ(*set.data(), entt::entity{entt::to_integral(entt::entity{0u}) | (traits_type::entity_type{version} << traits_type::entity_shift)});
 }
 
 TEST(SparseSet, Pagination) {
