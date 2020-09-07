@@ -338,6 +338,22 @@ public:
     }
 
     /**
+     * @brief Returns the actual identifier associated with a given entity.
+     *
+     * A sparse set doesn't take into account the version of an identifier for 
+     * presence tests and so on.<br/>
+     * This function returns the identifier actually associated with an entity 
+     * for any checks by the caller.
+     *
+     * @param entt A valid entity identifier.
+     * @return The identifier actually associated with an entity.
+     */
+    [[nodiscard]] entity_type get(const entity_type entt) const {
+        ENTT_ASSERT(contains(entt));
+        return packed[index(entt)];
+    }
+
+    /**
      * @brief Finds an entity.
      * @param entt A valid entity identifier.
      * @return An iterator to the given entity if it's found, past the end
