@@ -95,10 +95,13 @@ public:
     template<typename Archive>
     const basic_snapshot & entities(Archive &archive) const {
         const auto sz = reg->size();
+        const auto alive = reg->alive();
+
         auto first = reg->data();
         const auto last = first + sz;
 
         archive(typename traits_type::entity_type(sz));
+        archive(typename traits_type::entity_type(alive));
 
         while(first != last) {
             archive(*(first++));
@@ -204,7 +207,7 @@ public:
         : reg{&source}
     {
         // restoring a snapshot as a whole requires a clean registry
-        ENTT_ASSERT(reg->empty());
+        ENTT_ASSERT(!reg->alive());
     }
 
     /*! @brief Default move constructor. */
@@ -225,16 +228,18 @@ public:
      */
     template<typename Archive>
     const basic_snapshot_loader & entities(Archive &archive) const {
-        typename traits_type::entity_type length{};
+        typename traits_type::entity_type sz{};
+        typename traits_type::entity_type alive{};
 
-        archive(length);
-        std::vector<entity_type> all(length);
+        archive(sz);
+        archive(alive);
+        std::vector<entity_type> all(sz);
 
-        for(decltype(length) pos{}; pos < length; ++pos) {
+        for(decltype(sz) pos{}; pos < sz; ++pos) {
             archive(all[pos]);
         }
 
-        reg->assign(all.cbegin(), all.cend());
+        reg->assign(all.cbegin(), all.cend(), alive);
 
         return *this;
     }
@@ -436,19 +441,21 @@ public:
      */
     template<typename Archive>
     basic_continuous_loader & entities(Archive &archive) {
-        typename traits_type::entity_type length{};
+        typename traits_type::entity_type sz{};
+        typename traits_type::entity_type alive{};
         entity_type entt{};
 
-        archive(length);
+        archive(sz);
+        archive(alive);
 
-        for(decltype(length) pos{}; pos < length; ++pos) {
+        for(decltype(sz) next = alive; next; --next) {
             archive(entt);
+            restore(entt);
+        }
 
-            if(const auto entity = (to_integral(entt) & traits_type::entity_mask); entity == pos) {
-                restore(entt);
-            } else {
-                destroy(entt);
-            }
+        for(decltype(sz) next = sz - alive; next; --next) {
+            archive(entt);
+            destroy(entt);
         }
 
         return *this;

@@ -107,10 +107,7 @@ TEST(Registry, Functionalities) {
     ASSERT_EQ(registry.size(), entt::registry::size_type{0});
     ASSERT_EQ(registry.alive(), entt::registry::size_type{0});
     ASSERT_NO_THROW((registry.reserve<int, char>(8)));
-    ASSERT_NO_THROW(registry.reserve(42));
-    ASSERT_TRUE(registry.empty());
-
-    ASSERT_EQ(registry.capacity(), entt::registry::size_type{42});
+    
     ASSERT_EQ(registry.capacity<int>(), entt::registry::size_type{8});
     ASSERT_EQ(registry.capacity<char>(), entt::registry::size_type{8});
     ASSERT_EQ(registry.size<int>(), entt::registry::size_type{0});
@@ -192,7 +189,6 @@ TEST(Registry, Functionalities) {
 
     ASSERT_EQ(registry.size(), entt::registry::size_type{3});
     ASSERT_EQ(registry.alive(), entt::registry::size_type{3});
-    ASSERT_FALSE(registry.empty());
 
     ASSERT_EQ(registry.version(e2), entt::registry::version_type{0});
     ASSERT_EQ(registry.current(e2), entt::registry::version_type{0});
@@ -206,13 +202,11 @@ TEST(Registry, Functionalities) {
 
     ASSERT_EQ(registry.size(), entt::registry::size_type{3});
     ASSERT_EQ(registry.alive(), entt::registry::size_type{2});
-    ASSERT_FALSE(registry.empty());
 
     ASSERT_NO_THROW(registry.clear());
 
     ASSERT_EQ(registry.size(), entt::registry::size_type{3});
     ASSERT_EQ(registry.alive(), entt::registry::size_type{0});
-    ASSERT_TRUE(registry.empty());
 
     const auto e3 = registry.create();
 
@@ -316,8 +310,8 @@ TEST(Registry, RawData) {
     const auto other = registry.create();
     registry.destroy(entity);
 
-    ASSERT_NE(*std::as_const(registry).data(), entity);
-    ASSERT_EQ(*(std::as_const(registry).data() + 1u), other);
+    ASSERT_EQ(*std::as_const(registry).data(), other);
+    ASSERT_NE(*(std::as_const(registry).data() + 1u), entity);
 }
 
 TEST(Registry, CreateManyEntitiesAtOnce) {
@@ -373,25 +367,25 @@ TEST(Registry, CreateManyEntitiesAtOnceWithListener) {
 TEST(Registry, CreateWithHint) {
     entt::registry registry;
     auto e3 = registry.create(entt::entity{3});
-    auto e2 = registry.create(entt::entity{3});
+    auto e1 = registry.create(entt::entity{3});
 
-    ASSERT_EQ(e2, entt::entity{2});
-    ASSERT_FALSE(registry.valid(entt::entity{1}));
+    ASSERT_EQ(e1, entt::entity{1});
+    ASSERT_FALSE(registry.valid(entt::entity{2}));
     ASSERT_EQ(e3, entt::entity{3});
 
-    registry.destroy(e2);
+    registry.destroy(e1);
 
-    ASSERT_EQ(registry.version(e2), entt::registry::version_type{});
-    ASSERT_EQ(registry.current(e2), entt::registry::version_type{1});
+    ASSERT_EQ(registry.version(e1), entt::registry::version_type{});
+    ASSERT_EQ(registry.current(e1), entt::registry::version_type{1});
 
-    e2 = registry.create();
-    auto e1 = registry.create(entt::entity{2});
+    e1 = registry.create();
+    auto e2 = registry.create(entt::entity{2});
 
     ASSERT_EQ(registry.entity(e2), entt::entity{2});
-    ASSERT_EQ(registry.version(e2), entt::registry::version_type{1});
+    ASSERT_EQ(registry.version(e2), entt::registry::version_type{});
 
     ASSERT_EQ(registry.entity(e1), entt::entity{1});
-    ASSERT_EQ(registry.version(e1), entt::registry::version_type{});
+    ASSERT_EQ(registry.version(e1), entt::registry::version_type{1});
 
     registry.destroy(e1);
     registry.destroy(e2);
@@ -1418,7 +1412,7 @@ TEST(Registry, AssignEntities) {
     registry.destroy(entities[2]);
 
     entt::registry other;
-    other.assign(registry.data(), registry.data() + registry.size());
+    other.assign(registry.data(), registry.data() + registry.size(), registry.alive());
 
     ASSERT_EQ(registry.size(), other.size());
     ASSERT_TRUE(other.valid(entities[0]));

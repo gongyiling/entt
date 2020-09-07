@@ -186,14 +186,14 @@ class basic_registry {
             const auto index = type_index<Component>::value();
 
             if(!(index < pools.size())) {
-                pools.resize(size_type(index+1u));
+                pools.resize(size_type(index)+1u);
             }
 
             if(auto &&pdata = pools[index]; !pdata.pool) {
                 pdata.type_id = type_info<Component>::id();
                 pdata.pool.reset(new pool_handler<Component>());
-                pdata.remove = [](sparse_set<entity_type> &target, basic_registry &owner, const entity_type entt) {
-                    static_cast<pool_handler<Component> &>(target).remove(owner, entt);
+                pdata.remove = [](sparse_set<entity_type> &target, basic_registry &owner, const entity_type entity) {
+                    static_cast<pool_handler<Component> &>(target).remove(owner, entity);
                 };
             }
 
@@ -203,8 +203,8 @@ class basic_registry {
                 cpool = pools.emplace_back(pool_data{
                     type_info<Component>::id(),
                     std::unique_ptr<sparse_set<entity_type>>{new pool_handler<Component>()},
-                    [](sparse_set<entity_type> &target, basic_registry &owner, const entity_type entt) {
-                        static_cast<pool_handler<Component> &>(target).remove(owner, entt);
+                    [](sparse_set<entity_type> &target, basic_registry &owner, const entity_type entity) {
+                        static_cast<pool_handler<Component> &>(target).remove(owner, entity);
                     }
                 }).pool.get();
             } else {
@@ -270,36 +270,21 @@ public:
      * @return Number of entities still in use.
      */
     [[nodiscard]] size_type alive() const {
-        auto sz = entities.size();
-        auto curr = destroyed;
-
-        for(; curr != null; --sz) {
-            curr = entities[to_integral(curr) & traits_type::entity_mask];
-        }
-
-        return sz;
+        return entities.size() - destroyed;
     }
 
     /**
-     * @brief Increases the capacity of the registry or of the pools for the
-     * given components.
+     * @brief Increases the capacity of pools for the given components.
      *
-     * If no components are specified, the capacity of the registry is
-     * increased, that is the number of entities it contains. Otherwise the
-     * capacity of the pools for the given components is increased.<br/>
-     * In both cases, if the new capacity is greater than the current capacity,
-     * new storage is allocated, otherwise the method does nothing.
+     * If the new capacity is greater than the current capacity, new storage is
+     * allocated, otherwise the method does nothing.
      *
      * @tparam Component Types of components for which to reserve storage.
      * @param cap Desired capacity.
      */
     template<typename... Component>
     void reserve(const size_type cap) {
-        if constexpr(sizeof...(Component) == 0) {
-            entities.reserve(cap);
-        } else {
-            (assure<Component>().reserve(cap), ...);
-        }
+        (assure<Component>().reserve(cap), ...);
     }
 
     /**
@@ -313,15 +298,6 @@ public:
     }
 
     /**
-     * @brief Returns the number of entities that a registry has currently
-     * allocated space for.
-     * @return Capacity of the registry.
-     */
-    [[nodiscard]] size_type capacity() const ENTT_NOEXCEPT {
-        return entities.capacity();
-    }
-
-    /**
      * @brief Requests the removal of unused capacity for the given components.
      * @tparam Component Types of components for which to reclaim unused
      * capacity.
@@ -332,23 +308,14 @@ public:
     }
 
     /**
-     * @brief Checks whether the registry or the pools of the given components
-     * are empty.
-     *
-     * A registry is considered empty when it doesn't contain entities that are
-     * still in use.
-     *
+     * @brief Checks whether the pools of the given components are empty.
      * @tparam Component Types of components in which one is interested.
-     * @return True if the registry or the pools of the given components are
-     * empty, false otherwise.
+     * @return True if the pools of the given components are empty, false
+     * otherwise.
      */
     template<typename... Component>
     [[nodiscard]] bool empty() const {
-        if constexpr(sizeof...(Component) == 0) {
-            return !alive();
-        } else {
-            return (assure<Component>().empty() && ...);
-        }
+        return (assure<Component>().empty() && ...);
     }
 
     /**
@@ -401,11 +368,10 @@ public:
      * @brief Direct access to the list of entities of a registry.
      *
      * The returned pointer is such that range `[data(), data() + size()]` is
-     * always a valid range, even if the container is empty.
-     *
-     * @warning
-     * This list contains both valid and destroyed entities and isn't suitable
-     * for direct use.
+     * always a valid range, even if the container is empty.<br/>
+     * Moreover:
+     * * `[data(), data() + alive()]` contains all the entities still alive.
+     * * `[data() + alive(), data() + size()]` constains all destroyed entities.
      *
      * @return A pointer to the array of entities.
      */
@@ -419,8 +385,7 @@ public:
      * @return True if the identifier is valid, false otherwise.
      */
     [[nodiscard]] bool valid(const entity_type entity) const {
-        const auto pos = size_type(to_integral(entity) & traits_type::entity_mask);
-        return (pos < entities.size() && entities[pos] == entity);
+        return entities.contains(entity) && entities.index(entity) < alive() && entities.get(entity) == entity;
     }
 
     /**
@@ -455,9 +420,7 @@ public:
      * @return Actual version for the given entity identifier.
      */
     [[nodiscard]] version_type current(const entity_type entity) const {
-        const auto pos = size_type(to_integral(entity) & traits_type::entity_mask);
-        ENTT_ASSERT(pos < entities.size());
-        return version_type(to_integral(entities[pos]) >> traits_type::entity_shift);
+        return version_type(to_integral(entities.get(entity)) >> traits_type::entity_shift);
     }
 
     /**
@@ -471,20 +434,14 @@ public:
      * @return A valid entity identifier.
      */
     entity_type create() {
-        entity_type entt;
-
-        if(destroyed == null) {
-            entt = entities.emplace_back(entity_type{static_cast<typename traits_type::entity_type>(entities.size())});
-            // traits_type::entity_mask is reserved to allow for null identifiers
-            ENTT_ASSERT(to_integral(entt) < traits_type::entity_mask);
+        if(destroyed == size_type{}) {
+            entity_type entt{static_cast<typename traits_type::entity_type>(entities.size())};
+            ENTT_ASSERT(entt != null);
+            entities.emplace(entt);
+            return entt;
         } else {
-            const auto curr = to_integral(destroyed);
-            const auto version = to_integral(entities[curr]) & (traits_type::version_mask << traits_type::entity_shift);
-            destroyed = entity_type{to_integral(entities[curr]) & traits_type::entity_mask};
-            entt = entities[curr] = entity_type{curr | version};
+            return *(entities.begin() + --destroyed);
         }
-
-        return entt;
     }
 
     /**
@@ -500,27 +457,27 @@ public:
      */
     [[nodiscard]] entity_type create(const entity_type hint) {
         ENTT_ASSERT(hint != null);
-        entity_type entt;
 
-        if(const auto req = (to_integral(hint) & traits_type::entity_mask); !(req < entities.size())) {
-            entities.reserve(req + 1);
+        if(entities.contains(hint)) {
+            if(entities.index(hint) > alive()) {
+                entities.swap(hint, *(entities.begin() + --destroyed));
+                entities.emplace(hint, version(hint));
+                return hint;
+            } else {
+                return create();
+            }
+        } else {
+            ENTT_ASSERT((to_integral(hint) & traits_type::entity_mask) < static_cast<traits_type::entity_type>(null));
+            const auto diff = size_type(to_integral(hint) & traits_type::entity_mask) + 1u - size();
+            entities.reserve(size() + diff);
 
-            for(auto pos = entities.size(); pos < req; ++pos) {
-                entities.emplace_back(destroyed);
-                destroyed = entity_type{static_cast<typename traits_type::entity_type>(pos)};
+            for(auto next = diff; next; --next) {
+                entities.emplace(entity_type{static_cast<typename traits_type::entity_type>(entities.size())});
             }
 
-            entt = entities.emplace_back(hint);
-        } else if(const auto curr = (to_integral(entities[req]) & traits_type::entity_mask); req == curr) {
-            entt = create();
-        } else {
-            auto *it = &destroyed;
-            for(; (to_integral(*it) & traits_type::entity_mask) != req; it = &entities[to_integral(*it) & traits_type::entity_mask]);
-            *it = entity_type{curr | (to_integral(*it) & (traits_type::version_mask << traits_type::entity_shift))};
-            entt = entities[req] = hint;
+            destroyed += diff;
+            return create(hint);
         }
-
-        return entt;
     }
 
     /**
@@ -540,31 +497,22 @@ public:
     /**
      * @brief Assigns entities to an empty registry.
      *
-     * This function is intended for use in conjunction with `raw`.<br/>
+     * This function is intended for use in conjunction with `raw`, `size` and
+     * `alive`.<br/>
      * Don't try to inject ranges of randomly generated entities. There is no
      * guarantee that a registry will continue to work properly in this case.
-     *
-     * @warning
-     * An assertion will abort the execution at runtime in debug mode if all
-     * pools aren't empty.
      *
      * @tparam It Type of input iterator.
      * @param first An iterator to the first element of the range of entities.
      * @param last An iterator past the last element of the range of entities.
+     * @param in_use Number of entities to be considered still in use.
      */
     template<typename It>
-    void assign(It first, It last) {
+    void assign(It first, It last, size_type in_use) {
         ENTT_ASSERT(std::all_of(pools.cbegin(), pools.cend(), [](auto &&pdata) { return !pdata.pool || pdata.pool->empty(); }));
-        entities.assign(first, last);
-        destroyed = null;
-
-        for(std::size_t pos{}, end = entities.size(); pos < end; ++pos) {
-            if((to_integral(entities[pos]) & traits_type::entity_mask) != pos) {
-                const auto version = to_integral(entities[pos]) & (traits_type::version_mask << traits_type::entity_shift);
-                entities[pos] = entity_type{to_integral(destroyed) | version};
-                destroyed = entity_type{static_cast<typename traits_type::entity_type>(pos)};
-            }
-        }
+        entities.clear();
+        entities.insert(first, last);
+        destroyed = entities.size() - in_use;
     }
 
     /**
@@ -594,10 +542,8 @@ public:
      */
     void destroy(const entity_type entity, const version_type version) {
         remove_all(entity);
-        // lengthens the implicit list of destroyed entities
-        const auto entt = to_integral(entity) & traits_type::entity_mask;
-        entities[entt] = entity_type{to_integral(destroyed) | (typename traits_type::entity_type{version} << traits_type::entity_shift)};
-        destroyed = entity_type{entt};
+        entities.emplace(entity, version);
+        entities.swap(entity, *(entities.begin() + destroyed++));
     }
 
     /**
@@ -1023,25 +969,13 @@ public:
      * void(const Entity);
      * @endcode
      *
-     * This function is fairly slow and should not be used frequently. However,
-     * it's useful for iterating all the entities still in use, regardless of
-     * their components.
-     *
      * @tparam Func Type of the function object to invoke.
      * @param func A valid function object.
      */
     template<typename Func>
     void each(Func func) const {
-        if(destroyed == null) {
-            for(auto pos = entities.size(); pos; --pos) {
-                func(entities[pos-1]);
-            }
-        } else {
-            for(auto pos = entities.size(); pos; --pos) {
-                if(const auto entt = entities[pos - 1]; (to_integral(entt) & traits_type::entity_mask) == (pos - 1)) {
-                    func(entt);
-                }
-            }
+        for(auto first = entities.begin() + destroyed, last = entities.end(); first != last; ++first) {
+            func(*first);
         }
     }
 
@@ -1065,8 +999,6 @@ public:
      * @code{.cpp}
      * void(const Entity);
      * @endcode
-     *
-     * This function can be very slow and should not be used frequently.
      *
      * @tparam Func Type of the function object to invoke.
      * @param func A valid function object.
@@ -1550,6 +1482,8 @@ public:
      */
     template<typename Func>
     void visit(entity_type entity, Func func) const {
+        ENTT_ASSERT(valid(entity));
+
         for(auto pos = pools.size(); pos; --pos) {
             if(const auto &pdata = pools[pos-1]; pdata.pool && pdata.pool->contains(entity)) {
                 func(pdata.type_id);
@@ -1705,9 +1639,9 @@ public:
 private:
     std::vector<group_data> groups{};
     mutable std::vector<pool_data> pools{};
-    std::vector<entity_type> entities{};
     std::vector<variable_data> vars{};
-    entity_type destroyed{null};
+    sparse_set<entity_type> entities;
+    size_type destroyed{};
 };
 
 

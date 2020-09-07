@@ -109,7 +109,7 @@ TEST(BasicHandle, Lifetime) {
     handle->emplace<int>();
 
     ASSERT_FALSE(registry.empty<int>());
-    ASSERT_FALSE(registry.empty());
+    ASSERT_NE(registry.alive(), 0u);
 
     registry.each([handle](const auto e) {
         ASSERT_EQ(handle->entity(), e);
@@ -118,7 +118,7 @@ TEST(BasicHandle, Lifetime) {
     delete handle;
 
     ASSERT_FALSE(registry.empty<int>());
-    ASSERT_FALSE(registry.empty());
+    ASSERT_NE(registry.alive(), 0u);
 }
 
 TEST(BasicHandle, ImplicitConversions) {
