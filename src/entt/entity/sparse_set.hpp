@@ -401,11 +401,12 @@ public:
      * sparse set already contains the given entity.
      *
      * @param entt A valid entity identifier.
+     * @return The newly assigned identifier.
      */
-    void emplace(const entity_type entt) {
-        ENTT_ASSERT(!contains(entt));
+    entity_type emplace(const entity_type entt) {
+        ENTT_ASSERT((to_integral(entt) & traits_type::entity_mask) < static_cast<size_type>(null) && !contains(entt));
         assure(page(entt))[offset(entt)] = entity_type(static_cast<typename traits_type::entity_type>(packed.size()));
-        packed.push_back(entt);
+        return packed.emplace_back(entt);
     }
 
     /**
@@ -419,10 +420,13 @@ public:
      *
      * @param entt A valid entity identifier.
      * @param version Updated version to assign to the entity.
+     * @return The updated identifier.
      */
-    void emplace(const entity_type entt, const version_type version) {
+    entity_type emplace(const entity_type entt, const version_type version) {
         ENTT_ASSERT(contains(entt));
-        packed[index(entt)] = entity_type{(to_integral(entt) & traits_type::entity_mask) | (typename traits_type::entity_type{version} << traits_type::entity_shift)};
+        const entity_type other{(to_integral(entt) & traits_type::entity_mask) | (typename traits_type::entity_type{version} << traits_type::entity_shift)};
+        packed[index(entt)] = other;
+        return other;
     }
 
     /**

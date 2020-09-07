@@ -84,12 +84,9 @@ TEST(SparseSet, VersionUpdate) {
     const traits_type::version_type version{16u};
     const entt::entity entity{0u};
 
-    set.emplace(entt::entity{0u});
-
+    ASSERT_EQ(set.emplace(entity), entity);
     ASSERT_EQ(set.get(entity), entt::entity{0u});
-
-    set.emplace(entity, version);
-
+    ASSERT_NE(set.emplace(entity, version), entity);
     ASSERT_NE(set.get(entity), entt::entity{0u});
     ASSERT_EQ(set.get(entity), entt::entity{entt::to_integral(entt::entity{0u}) | (traits_type::entity_type{version} << traits_type::entity_shift)});
 }
