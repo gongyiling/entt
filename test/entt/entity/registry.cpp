@@ -316,14 +316,14 @@ TEST(Registry, RawData) {
 
 TEST(Registry, CreateManyEntitiesAtOnce) {
     entt::registry registry;
-    entt::entity entities[3];
 
     const auto entity = registry.create();
     registry.destroy(registry.create());
     registry.destroy(entity);
     registry.destroy(registry.create());
 
-    registry.create(std::begin(entities), std::end(entities));
+    const auto count = 3u;
+    auto *entities = registry.create(count);
 
     ASSERT_TRUE(registry.valid(entities[0]));
     ASSERT_TRUE(registry.valid(entities[1]));
@@ -341,27 +341,29 @@ TEST(Registry, CreateManyEntitiesAtOnce) {
 
 TEST(Registry, CreateManyEntitiesAtOnceWithListener) {
     entt::registry registry;
-    entt::entity entities[3];
     listener listener;
 
+    const auto count = 3u;
+    auto *entities = registry.create(count);
+
     registry.on_construct<int>().connect<&listener::incr<int>>(listener);
-    registry.create(std::begin(entities), std::end(entities));
-    registry.insert(std::begin(entities), std::end(entities), 42);
-    registry.insert(std::begin(entities), std::end(entities), 'c');
+    registry.insert(entities, entities + count, 42);
+    registry.insert(entities, entities + count, 'c');
 
     ASSERT_EQ(registry.get<int>(entities[0]), 42);
     ASSERT_EQ(registry.get<char>(entities[1]), 'c');
-    ASSERT_EQ(listener.counter, 3);
+    ASSERT_EQ(listener.counter, count);
+
+    entities = registry.create(count);
 
     registry.on_construct<int>().disconnect<&listener::incr<int>>(listener);
     registry.on_construct<empty_type>().connect<&listener::incr<empty_type>>(listener);
-    registry.create(std::begin(entities), std::end(entities));
-    registry.insert(std::begin(entities), std::end(entities), 'a');
-    registry.insert<empty_type>(std::begin(entities), std::end(entities));
+    registry.insert(entities, entities + count, 'a');
+    registry.insert<empty_type>(entities, entities + count);
 
     ASSERT_TRUE(registry.has<empty_type>(entities[0]));
     ASSERT_EQ(registry.get<char>(entities[2]), 'a');
-    ASSERT_EQ(listener.counter, 6);
+    ASSERT_EQ(listener.counter, 2 * count);
 }
 
 TEST(Registry, CreateWithHint) {
@@ -819,11 +821,11 @@ TEST(Registry, CleanPartialOwningGroupViewAfterRemoveAndClear) {
 
 TEST(Registry, NestedGroups) {
     entt::registry registry;
-    entt::entity entities[10];
+    const auto count = 10u;
+    auto *entities = registry.create(count);
 
-    registry.create(std::begin(entities), std::end(entities));
-    registry.insert<int>(std::begin(entities), std::end(entities));
-    registry.insert<char>(std::begin(entities), std::end(entities));
+    registry.insert<int>(entities, entities + count);
+    registry.insert<char>(entities, entities + count);
     const auto g1 = registry.group<int>(entt::get<char>, entt::exclude<double>);
 
     ASSERT_TRUE(registry.sortable(g1));
@@ -1406,10 +1408,10 @@ TEST(Registry, StableEmplace) {
 
 TEST(Registry, AssignEntities) {
     entt::registry registry;
-    entt::entity entities[3];
-    registry.create(std::begin(entities), std::end(entities));
-    registry.destroy(entities[1]);
+    auto *entities = registry.create(3);
+
     registry.destroy(entities[2]);
+    registry.destroy(entities[1]);
 
     entt::registry other;
     other.assign(registry.data(), registry.data() + registry.size(), registry.alive());
@@ -1419,7 +1421,7 @@ TEST(Registry, AssignEntities) {
     ASSERT_FALSE(other.valid(entities[1]));
     ASSERT_FALSE(other.valid(entities[2]));
     ASSERT_EQ(registry.create(), other.create());
-    ASSERT_EQ(other.entity(other.create()), entities[1]);
+    ASSERT_EQ(other.entity(other.create()), registry.entity(entities[2]));
 }
 
 TEST(Registry, Visit) {

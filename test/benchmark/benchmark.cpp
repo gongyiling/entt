@@ -80,28 +80,27 @@ TEST(Benchmark, Create) {
 
 TEST(Benchmark, CreateMany) {
     entt::registry registry;
-    std::vector<entt::entity> entities(1000000);
 
     std::cout << "Creating 1000000 entities at once" << std::endl;
 
     timer timer;
-    registry.create(entities.begin(), entities.end());
+    [[maybe_unused]] auto *entities = registry.create(1000000);
     timer.elapsed();
 }
 
 TEST(Benchmark, CreateManyAndEmplaceComponents) {
     entt::registry registry;
-    std::vector<entt::entity> entities(1000000);
 
     std::cout << "Creating 1000000 entities at once and emplace components" << std::endl;
 
     timer timer;
 
-    registry.create(entities.begin(), entities.end());
+    const auto count = 1000000u;
+    auto *entities = registry.create(count);
 
-    for(const auto entity: entities) {
-        registry.emplace<position>(entity);
-        registry.emplace<velocity>(entity);
+    for(auto next = 0u; next < count; ++next) {
+        registry.emplace<position>(entities[next]);
+        registry.emplace<velocity>(entities[next]);
     }
 
     timer.elapsed();
@@ -109,14 +108,14 @@ TEST(Benchmark, CreateManyAndEmplaceComponents) {
 
 TEST(Benchmark, CreateManyWithComponents) {
     entt::registry registry;
-    std::vector<entt::entity> entities(1000000);
 
     std::cout << "Creating 1000000 entities at once with components" << std::endl;
 
     timer timer;
-    registry.create(entities.begin(), entities.end());
-    registry.insert<position>(entities.begin(), entities.end());
-    registry.insert<velocity>(entities.begin(), entities.end());
+    const auto count = 1000000u;
+    auto *entities = registry.create(count);
+    registry.insert<position>(entities, entities + count);
+    registry.insert<velocity>(entities, entities + count);
     timer.elapsed();
 }
 

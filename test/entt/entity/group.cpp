@@ -753,8 +753,8 @@ TEST(OwningGroup, SortOrdered) {
     entt::registry registry;
     auto group = registry.group<boxed_int, char>();
 
-    entt::entity entities[5]{};
-    registry.create(std::begin(entities), std::end(entities));
+    const auto count = 5u;
+    auto *entities = registry.create(count);
 
     registry.emplace<boxed_int>(entities[0], 12);
     registry.emplace<char>(entities[0], 'a');
@@ -800,8 +800,8 @@ TEST(OwningGroup, SortReverse) {
     entt::registry registry;
     auto group = registry.group<boxed_int, char>();
 
-    entt::entity entities[5]{};
-    registry.create(std::begin(entities), std::end(entities));
+    const auto count = 5u;
+    auto *entities = registry.create(count);
 
     registry.emplace<boxed_int>(entities[0], 6);
     registry.emplace<char>(entities[0], 'a');
@@ -847,8 +847,8 @@ TEST(OwningGroup, SortUnordered) {
     entt::registry registry;
     auto group = registry.group<boxed_int>(entt::get<char>);
 
-    entt::entity entities[7]{};
-    registry.create(std::begin(entities), std::end(entities));
+    const auto count = 7u;
+    auto *entities = registry.create(count);
 
     registry.emplace<boxed_int>(entities[0], 6);
     registry.emplace<char>(entities[0], 'c');
@@ -908,8 +908,8 @@ TEST(OwningGroup, SortWithExclusionList) {
     entt::registry registry;
     auto group = registry.group<boxed_int>(entt::exclude<char>);
 
-    entt::entity entities[5]{};
-    registry.create(std::begin(entities), std::end(entities));
+    const auto count = 5u;
+    auto *entities = registry.create(count);
 
     registry.emplace<boxed_int>(entities[0], 0);
     registry.emplace<boxed_int>(entities[1], 1);

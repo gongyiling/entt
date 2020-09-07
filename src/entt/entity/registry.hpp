@@ -435,10 +435,7 @@ public:
      */
     entity_type create() {
         if(destroyed == size_type{}) {
-            entity_type entt{static_cast<typename traits_type::entity_type>(entities.size())};
-            ENTT_ASSERT(entt != null);
-            entities.emplace(entt);
-            return entt;
+            return entities.emplace(entity_type(entities.size()));
         } else {
             return *(entities.begin() + --destroyed);
         }
@@ -461,18 +458,16 @@ public:
         if(entities.contains(hint)) {
             if(entities.index(hint) > alive()) {
                 entities.swap(hint, *(entities.begin() + --destroyed));
-                entities.emplace(hint, version(hint));
-                return hint;
+                return entities.emplace(hint, version(hint));
             } else {
                 return create();
             }
         } else {
-            ENTT_ASSERT((to_integral(hint) & traits_type::entity_mask) < static_cast<traits_type::entity_type>(null));
             const auto diff = size_type(to_integral(hint) & traits_type::entity_mask) + 1u - size();
             entities.reserve(size() + diff);
 
             for(auto next = diff; next; --next) {
-                entities.emplace(entity_type{static_cast<typename traits_type::entity_type>(entities.size())});
+                entities.emplace(entity_type(entities.size()));
             }
 
             destroyed += diff;
@@ -481,17 +476,26 @@ public:
     }
 
     /**
-     * @brief Assigns each element in a range an entity.
+     * @brief Returns multiple entities at once.
      *
      * @sa create
+     * 
+     * @warning
+     * The returned pointer can be invalidated in case of entity deletion.<br/>
+     * It's recommended to copy the identifiers aside if not used immediately.
      *
-     * @tparam It Type of forward iterator.
-     * @param first An iterator to the first element of the range to generate.
-     * @param last An iterator past the last element of the range to generate.
+     * @param count number of entities to return.
      */
-    template<typename It>
-    void create(It first, It last) {
-        std::generate(first, last, [this]() { return create(); });
+    const entity_type * create(const size_type count) {
+        entities.reserve(size() + count - destroyed);
+        
+        for(; destroyed < count; ++destroyed) {
+            entities.emplace(entity_type(entities.size()));
+        }
+
+        auto *all = entities.data() + entities.size() - destroyed;
+        destroyed -= count;
+        return all;
     }
 
     /**
