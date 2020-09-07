@@ -185,9 +185,10 @@ auto entity = registry.create();
 registry.destroy(entity);
 ```
 
-The `create` member function accepts also a hint and has an overload that gets
-two iterators and can be used to generate multiple entities at once efficiently.
-Similarly, the `destroy` member function works also with a range of entities:
+The `create` member function also accepts a hint and has an overload that gets
+the number of elements to create and can be used to generate multiple entities
+at once efficiently.<br/>
+The `destroy` member function works with ranges of entities instead:
 
 ```cpp
 // destroys all the entities in a range
@@ -1653,9 +1654,7 @@ instead. It accepts a valid entity identifer as an argument and returns true in
 case the entity is an orphan, false otherwise.
 
 In general, all these functions can result in poor performance.<br/>
-`each` is fairly slow because of some checks it performs on each and every
-entity. For similar reasons, `orphans` can be even slower. Both functions should
-not be used frequently to avoid the risk of a performance hit.
+Both functions shouldn't be used frequently to avoid risks of performance hits.
 
 ## What is allowed and what is not
 
