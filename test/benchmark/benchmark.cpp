@@ -95,7 +95,7 @@ TEST(Benchmark, CreateManyAndEmplaceComponents) {
 
     timer timer;
 
-    const auto count = 1000000u;
+    const auto count = 1000000L;
     auto *entities = registry.create(count);
 
     for(auto next = 0u; next < count; ++next) {
@@ -112,10 +112,48 @@ TEST(Benchmark, CreateManyWithComponents) {
     std::cout << "Creating 1000000 entities at once with components" << std::endl;
 
     timer timer;
-    const auto count = 1000000u;
+    const auto count = 1000000L;
     auto *entities = registry.create(count);
     registry.insert<position>(entities, entities + count);
     registry.insert<velocity>(entities, entities + count);
+    timer.elapsed();
+}
+
+TEST(Benchmark, Recycle) {
+    entt::registry registry;
+
+    std::cout << "Recycling 1000000 entities" << std::endl;
+
+    const auto count = 1000000L;
+    registry.create(count);
+
+    registry.each([&registry](auto entity) {
+        registry.destroy(entity);
+    });
+
+    timer timer;
+
+    for(std::uint64_t i = 0; i < count; i++) {
+        registry.create();
+    }
+
+    timer.elapsed();
+}
+
+TEST(Benchmark, RecycleMany) {
+    entt::registry registry;
+
+    std::cout << "Recycling 1000000 entities at once" << std::endl;
+
+    const auto count = 1000000L;
+    registry.create(count);
+
+    registry.each([&registry](auto entity) {
+        registry.destroy(entity);
+    });
+
+    timer timer;
+    [[maybe_unused]] auto *entities = registry.create(count);
     timer.elapsed();
 }
 
