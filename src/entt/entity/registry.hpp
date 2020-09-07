@@ -437,7 +437,7 @@ public:
         if(destroyed == size_type{}) {
             return entities.emplace(entity_type(entities.size()));
         } else {
-            return *(entities.begin() + --destroyed);
+            return *(entities.rend() - --destroyed - 1u);
         }
     }
 
@@ -457,7 +457,7 @@ public:
 
         if(entities.contains(hint)) {
             if(entities.index(hint) > alive()) {
-                entities.swap(hint, *(entities.begin() + --destroyed));
+                entities.swap(hint, *(entities.rend() - --destroyed - 1u));
                 return entities.emplace(hint, version(hint));
             } else {
                 return create();
@@ -547,7 +547,7 @@ public:
     void destroy(const entity_type entity, const version_type version) {
         remove_all(entity);
         entities.emplace(entity, version);
-        entities.swap(entity, *(entities.begin() + destroyed++));
+        entities.swap(entity, *(entities.rend() - destroyed++ - 1u));
     }
 
     /**
@@ -561,7 +561,7 @@ public:
      */
     template<typename It>
     void destroy(It first, It last) {
-        while(first != last) { destroy(*(first++)); }
+        for(; first != last; ++first) { destroy(*first); }
     }
 
     /**
@@ -978,8 +978,8 @@ public:
      */
     template<typename Func>
     void each(Func func) const {
-        for(auto first = entities.begin() + destroyed, last = entities.end(); first != last; ++first) {
-            func(*first);
+        for(auto next = alive(); next; --next) {
+            func(entities.data()[next - 1u]);
         }
     }
 
