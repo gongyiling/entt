@@ -458,7 +458,7 @@ public:
         if(entities.contains(hint)) {
             if(entities.index(hint) > alive()) {
                 entities.swap(hint, *(entities.rend() - --destroyed - 1u));
-                return entities.emplace(hint, version(hint));
+                return entities.assign(hint, version(hint));
             } else {
                 return create();
             }
@@ -546,7 +546,7 @@ public:
      */
     void destroy(const entity_type entity, const version_type version) {
         remove_all(entity);
-        entities.emplace(entity, version);
+        entities.assign(entity, version);
         entities.swap(entity, *(entities.rend() - destroyed++ - 1u));
     }
 

@@ -422,7 +422,7 @@ public:
      * @param version Updated version to assign to the entity.
      * @return The updated identifier.
      */
-    entity_type emplace(const entity_type entt, const version_type version) {
+    entity_type assign(const entity_type entt, const version_type version) {
         ENTT_ASSERT(contains(entt));
         const entity_type other{(to_integral(entt) & traits_type::entity_mask) | (typename traits_type::entity_type{version} << traits_type::entity_shift)};
         packed[index(entt)] = other;
