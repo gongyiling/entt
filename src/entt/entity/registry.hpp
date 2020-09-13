@@ -109,33 +109,18 @@ class basic_registry {
 
     template<typename Component>
     [[nodiscard]] const pool_t<Entity, Component> & assure() const {
-        const sparse_set<entity_type> *cpool;
-
-        if constexpr(ENTT_FAST_PATH(has_type_index_v<Component>)) {
-            const auto index = type_index<Component>::value();
-
-            if(!(index < pools.size())) {
-                pools.resize(size_type(index+1u));
-            }
-
-            if(auto &&pdata = pools[index]; !pdata.pool) {
-                pdata.type_id = type_info<Component>::id();
-                pdata.pool.reset(new pool_t<Entity, Component>());
-            }
-
-            cpool = pools[index].pool.get();
-        } else {
-            if(const auto it = std::find_if(pools.cbegin(), pools.cend(), [id = type_info<Component>::id()](const auto &pdata) { return id == pdata.type_id; }); it == pools.cend()) {
-                cpool = pools.emplace_back(pool_data{
-                    type_info<Component>::id(),
-                    std::unique_ptr<sparse_set<entity_type>>{new pool_t<Entity, Component>()}
-                }).pool.get();
-            } else {
-                cpool = it->pool.get();
-            }
+        const auto index = type_index<Component>::value();
+        
+        if(!(index < pools.size())) {
+            pools.resize(size_type(index)+1u);
         }
-
-        return *static_cast<const pool_t<Entity, Component> *>(cpool);
+        
+        if(auto &&pdata = pools[index]; !pdata.pool) {
+            pdata.type_id = type_info<Component>::id();
+            pdata.pool.reset(new pool_t<Entity, Component>());
+        }
+        
+        return static_cast<const pool_t<Entity, Component> &>(*pools[index].pool);
     }
 
     template<typename Component>
