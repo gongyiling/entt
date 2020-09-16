@@ -340,9 +340,9 @@ public:
     template<typename Type>
     [[nodiscard]] const Type * try_cast() const {
         if(node) {
-            if(const auto type_id = internal::meta_info<Type>::resolve()->type_id; node->type_id == type_id) {
+            if(const auto type_hash = internal::meta_info<Type>::resolve()->type_hash; node->type_hash == type_hash) {
                 return static_cast<const Type *>(storage.data());
-            } else if(const auto *base = internal::find_if<&internal::meta_type_node::base>([type_id](const auto *curr) { return curr->type()->type_id == type_id; }, node); base) {
+            } else if(const auto *base = internal::find_if<&internal::meta_type_node::base>([type_hash](const auto *curr) { return curr->type()->type_hash == type_hash; }, node); base) {
                 return static_cast<const Type *>(base->cast(storage.data()));
             }
         }
@@ -392,9 +392,9 @@ public:
     template<typename Type>
     [[nodiscard]] meta_any convert() const {
         if(node) {
-            if(const auto type_id = internal::meta_info<Type>::resolve()->type_id; node->type_id == type_id) {
+            if(const auto type_hash = internal::meta_info<Type>::resolve()->type_hash; node->type_hash == type_hash) {
                 return *this;
-            } else if(const auto * const conv = internal::find_if<&internal::meta_type_node::conv>([type_id](const auto *curr) { return curr->type()->type_id == type_id; }, node); conv) {
+            } else if(const auto * const conv = internal::find_if<&internal::meta_type_node::conv>([type_hash](const auto *curr) { return curr->type()->type_hash == type_hash; }, node); conv) {
                 return conv->conv(storage.data());
             }
         }
@@ -409,7 +409,7 @@ public:
      */
     template<typename Type>
     bool convert() {
-        bool valid = (node && node->type_id == internal::meta_info<Type>::resolve()->type_id);
+        bool valid = (node && node->type_hash == internal::meta_info<Type>::resolve()->type_hash);
 
         if(!valid) {
             if(auto any = std::as_const(*this).convert<Type>(); any) {
@@ -485,7 +485,7 @@ public:
      * @return False if the two objects differ in their content, true otherwise.
      */
     [[nodiscard]] bool operator==(const meta_any &other) const {
-        return (!node && !other.node) || (node && other.node && node->type_id == other.node->type_id && node->compare(storage.data(), other.storage.data()));
+        return (!node && !other.node) || (node && other.node && node->type_hash == other.node->type_hash && node->compare(storage.data(), other.storage.data()));
     }
 
     /**
@@ -1008,9 +1008,9 @@ class meta_type {
 
         return std::find_if(range.begin(), range.end(), [](const auto &candidate) {
             return candidate.size == sizeof...(Args) && ([](auto *from, auto *to) {
-                return (from->type_id == to->type_id)
-                        || internal::find_if<&node_type::base>([to](const auto *curr) { return curr->type()->type_id == to->type_id; }, from)
-                        || internal::find_if<&node_type::conv>([to](const auto *curr) { return curr->type()->type_id == to->type_id; }, from);
+                return (from->type_hash == to->type_hash)
+                        || internal::find_if<&node_type::base>([to](const auto *curr) { return curr->type()->type_hash == to->type_hash; }, from)
+                        || internal::find_if<&node_type::conv>([to](const auto *curr) { return curr->type()->type_hash == to->type_hash; }, from);
             }(internal::meta_info<Args>::resolve(), candidate.arg(Indexes)) && ...);
         }).operator->();
     }
@@ -1027,11 +1027,11 @@ public:
     {}
 
     /**
-     * @brief Returns the type id of the underlying type.
-     * @return The type id of the underlying type.
+     * @brief Returns the type hash of the underlying type.
+     * @return The type hash of the underlying type.
      */
-    [[nodiscard]] id_type type_id() const ENTT_NOEXCEPT {
-        return node->type_id;
+    [[nodiscard]] id_type hash() const ENTT_NOEXCEPT {
+        return node->type_hash;
     }
 
     /**
@@ -1238,8 +1238,8 @@ public:
      */
     template<typename Type>
     [[nodiscard]] meta_conv conv() const {
-        return internal::find_if<&node_type::conv>([type_id = internal::meta_info<Type>::resolve()->type_id](const auto *curr) {
-            return curr->type()->type_id == type_id;
+        return internal::find_if<&node_type::conv>([type_hash = internal::meta_info<Type>::resolve()->type_hash](const auto *curr) {
+            return curr->type()->type_hash == type_hash;
         }, node);
     }
 
@@ -1452,7 +1452,7 @@ public:
      * otherwise.
      */
     [[nodiscard]] bool operator==(const meta_type &other) const ENTT_NOEXCEPT {
-        return (!node && !other.node) || (node && other.node && node->type_id == other.node->type_id);
+        return (!node && !other.node) || (node && other.node && node->type_hash == other.node->type_hash);
     }
 
     /**
